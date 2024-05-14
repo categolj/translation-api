@@ -8,6 +8,7 @@ import am.ik.webhook.spring.WebhookVerifierRequestBodyAdvice;
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.backoff.FixedBackOff;
 
 @Configuration(proxyBeanMethods = false)
@@ -30,7 +31,7 @@ public class AppConfig {
 
 	@Bean
 	public RestClientCustomizer restClientCustomizer() {
-		return builder -> builder
+		return builder -> builder.requestFactory(new SimpleClientHttpRequestFactory())
 			.requestInterceptor(new RetryableClientHttpRequestInterceptor(new FixedBackOff(2_000, 2)));
 	}
 
