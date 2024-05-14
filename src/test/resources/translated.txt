@@ -1,0 +1,157 @@
+== title ==
+Using llama-cpp-python to launch an OpenAI compatible server with the Gemma model and access it from Spring AI
+
+== content ==
+The same steps mentioned in "[Using llama-cpp-python to generate text locally with LLM and set up an OpenAI compatible server](/entries/770)" will be used to test Google's [Gemma](https://huggingface.co/google/gemma-2b).
+
+**Table of Contents**
+<!-- toc -->
+
+### Installing llama-cpp-python
+
+First, create a venv.
+
+```
+mkdir -p $HOME/work/llm
+cd $HOME/work/llm
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install llama-cpp-python. The server will also be installed together.
+
+```
+CMAKE_ARGS="-DLLAMA_METAL=on" pip install --force-reinstall --no-cache-dir 'llama-cpp-python[server]'
+```
+
+> ℹ️ If you encounter errors on an Apple Silicon Mac, try the setup at https://github.com/abetlen/llama-cpp-python/blob/main/docs/install/macos.md.
+
+`chat_format="gemma"` was supported in the following commit, so please use v0.2.48 or above.
+
+https://github.com/abetlen/llama-cpp-python/commit/251a8a2cadb4c0df4671062144d168a7874086a2
+
+### Downloading Gemma
+
+```
+sudo mkdir -p /opt/models
+sudo chown -R $USER /opt/models
+```
+
+Since the 7B model has a large file size, download the 2B model.
+
+https://huggingface.co/google/gemma-2b/tree/main
+
+Please download `gemma-2b.gguf` to `/opt/models/`.
+
+### Launching the OpenAI-compatible server
+
+Launch the server with the following command. You need to specify `--chat_format=gemma`.
+
+```
+python3 -m llama_cpp.server --chat_format=gemma --model /opt/models/gemma-2b-it.gguf --n_gpu_layers 1
+```
+
+You can check the API documentation from the following.
+
+http://localhost:8000/docs
+
+> OpenAI's ["Create chat completion" API](https://platform.openai.com/docs/api-reference/chat/create) requires the `model` parameter, but <br>
+> it seems that llama-cpp-python does not require the `model` parameter.
+
+#### Accessing via curl
+
+```
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+   "messages": [
+      {"role": "user", "content": "Give me a joke."}
+   ]
+ }' | jq .
+```
+
+A joke was returned.
+
+```json
+{
+  "id": "chatcmpl-79f5ae4c-cf47-494c-a82c-a7e3747ab463",
+  "object": "chat.completion",
+  "created": 1708846379,
+  "model": "/opt/models/gemma-2b-it.gguf",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "content": "Why did the scarecrow win an award?\n\nBecause he was outstanding in his field!",
+        "role": "assistant"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 14,
+    "completion_tokens": 18,
+    "total_tokens": 32
+  }
+}
+```
+
+```
+curl -s http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+   "messages": [
+      {"role": "user", "content": "What is the capital of Japan?"}
+   ]
+ }' | jq .
+```
+
+It seems to work in Japanese as well.
+
+```
+{
+  "id": "chatcmpl-3f111b5e-4244-4cfc-9818-d23b8d04ccb2",
+  "object": "chat.completion",
+  "created": 1708846400,
+  "model": "/opt/models/gemma-2b-it.gguf",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "content": "The capital of Japan is Tokyo. Tokyo is located in the eastern part of Japan and is a city that represents Japan.",
+        "role": "assistant"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 14,
+    "completion_tokens": 22,
+    "total_tokens": 36
+  }
+}
+```
+
+#### Accessing with Spring AI
+
+Let's access it from an app using [Spring AI](https://docs.spring.io/spring-ai/reference/index.html).
+Since it's OpenAI compatible, you can use Spring AI's [Chat Client for OpenAI](https://docs.spring.io/spring-ai/reference/api/clients/openai-chat.html).
+
+Here is a sample app. <br>
+https://github.com/making/hello-spring-ai
+
+```
+git clone https://github.com/making/hello-spring-ai
+cd hello-spring-ai
+./mvnw clean package -DskipTests=true
+java -jar target/hello-spring-ai-0.0.1-SNAPSHOT.jar --spring.ai.openai.base-url=http://localhost:8000 --spring.ai.openai.api-key=dummy
+```
+
+```
+$ curl localhost:8080
+What do you call a boomerang that won't come back?
+
+A stick.
+```
+
+Although this app itself is an app for OpenAI, the advantage of using llama-cpp-python is that you can also use Gemma just by changing the properties.
