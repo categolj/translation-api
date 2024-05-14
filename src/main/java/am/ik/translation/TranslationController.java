@@ -31,7 +31,7 @@ public class TranslationController {
 		this.objectMapper = objectMapper;
 	}
 
-	@PostMapping(path = "webhook")
+	@PostMapping(path = "webhook", headers = "X-GitHub-Event=issues")
 	public ResponseEntity<String> webhook(@WebhookPayload @RequestBody String payload) throws Exception {
 		IssueEvent issueEvent = this.objectMapper.readValue(payload, IssueEvent.class);
 		log.info("Received {}", issueEvent);

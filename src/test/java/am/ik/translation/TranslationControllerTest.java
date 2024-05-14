@@ -46,6 +46,7 @@ class TranslationControllerTest {
 	void init() {
 		if (this.restClient == null) {
 			this.restClient = this.restClientBuilder.baseUrl("http://localhost:%d".formatted(port))
+				.defaultHeader("X-GitHub-Event", "issues")
 				.defaultStatusHandler(new DefaultResponseErrorHandler() {
 					@Override
 					public void handleError(ClientHttpResponse response) {
