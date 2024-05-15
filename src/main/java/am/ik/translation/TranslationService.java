@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import am.ik.translation.entry.Entry;
@@ -24,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -57,10 +59,25 @@ public class TranslationService {
 
 	@Async
 	public void translateAndSendPullRequest(Long entryId, int issueNumber) {
+		this.sendComment(issueNumber);
 		Entry translated = this.translate(entryId);
 		logger.info("Translated {}", translated.entryId());
 		CreatePullResponse createPullResponse = this.sendPullRequest(translated, issueNumber);
 		logger.info("Sent a pull request: {}", createPullResponse.html_url());
+	}
+
+	public void sendComment(int issueNumber) {
+		OpenAiProps.Options chatOptions = this.openAiProps.chat().options();
+		this.restClient.post()
+			.uri("%s/repos/making/ik.am_en/issues/{issueNumber}".formatted(this.githubProps.apiUrl()), issueNumber)
+			.header("X-GitHub-Api-Version", "2022-11-28")
+			.header(HttpHeaders.ACCEPT, "application/vnd.github+json")
+			.contentType(MediaType.APPLICATION_JSON)
+			.body(Map.of("body",
+					"We will now start translating using OpenAI (%s). please wait a moment."
+						.formatted(chatOptions.model())))
+			.retrieve()
+			.toBodilessEntity();
 	}
 
 	public Entry translate(Long entryId) {
