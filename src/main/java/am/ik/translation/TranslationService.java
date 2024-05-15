@@ -70,6 +70,7 @@ public class TranslationService {
 		OpenAiProps.Options chatOptions = this.openAiProps.chat().options();
 		this.restClient.post()
 			.uri("%s/repos/making/ik.am_en/issues/{issueNumber}".formatted(this.githubProps.apiUrl()), issueNumber)
+			.header(HttpHeaders.AUTHORIZATION, "token %s".formatted(this.githubProps.accessToken()))
 			.header("X-GitHub-Api-Version", "2022-11-28")
 			.header(HttpHeaders.ACCEPT, "application/vnd.github+json")
 			.contentType(MediaType.APPLICATION_JSON)
