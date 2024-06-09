@@ -2,11 +2,10 @@ package am.ik.translation.config;
 
 import java.util.Set;
 
-import am.ik.accesslogger.AccessLogger;
-import am.ik.accesslogger.AccessLoggerBuilder;
 import am.ik.spring.http.client.RetryableClientHttpRequestInterceptor;
 import am.ik.translation.github.GithubProps;
 import am.ik.webhook.spring.WebhookVerifierRequestBodyAdvice;
+import org.zalando.logbook.spring.LogbookClientHttpRequestInterceptor;
 
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -25,17 +24,10 @@ public class AppConfig {
 	}
 
 	@Bean
-	public AccessLogger accessLogger() {
-		return AccessLoggerBuilder.accessLogger().filter(httpExchange -> {
-			String uri = httpExchange.getRequest().getUri().getPath();
-			return uri != null && !(uri.equals("/readyz") || uri.equals("/livez") || uri.startsWith("/actuator")
-					|| uri.startsWith("/cloudfoundryapplication"));
-		}).addKeyValues(true).build();
-	}
-
-	@Bean
-	public RestClientCustomizer restClientCustomizer() {
+	public RestClientCustomizer restClientCustomizer(
+			LogbookClientHttpRequestInterceptor logbookClientHttpRequestInterceptor) {
 		return builder -> builder.requestFactory(new SimpleClientHttpRequestFactory())
+			.requestInterceptor(logbookClientHttpRequestInterceptor)
 			.requestInterceptor(new RetryableClientHttpRequestInterceptor(new FixedBackOff(2_000, 2),
 					options -> options.sensitiveHeaders(Set.of(HttpHeaders.AUTHORIZATION.toLowerCase(),
 							HttpHeaders.PROXY_AUTHENTICATE.toLowerCase(), HttpHeaders.COOKIE.toLowerCase(),

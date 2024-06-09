@@ -28,7 +28,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = { "github.webhook-secret=opensesami" })
+		properties = { "github.webhook-secret=opensesami", "logging.logback.ecs-encoder.enabled=false" })
 class TranslationControllerTest {
 
 	@MockBean
