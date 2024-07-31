@@ -18,51 +18,10 @@ jobs:
   test:
     uses: making/workflows/.github/workflows/maven-unit-test.yaml@main
   build-jvm-image:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     needs: test
-    steps:
-    - uses: actions/checkout@v2
-    - uses: graalvm/setup-graalvm@v1
-      with:
-        java-version: '21'
-        distribution: 'graalvm'
-        cache: 'maven'
-    - name: Download build artifacts
-      uses: actions/download-artifact@v2
-      with:
-        name: build-artifacts
-        path: target
-    - name: build image
-      run: ./mvnw -V --no-transfer-progress spring-boot:build-image -DskipTests -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:jvm_${GITHUB_SHA}
-    - name: Login to GitHub Container Registry
-      if: github.ref == 'refs/heads/main'
-      uses: docker/login-action@v3
-      with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    - name: docker push
-      if: github.ref == 'refs/heads/main'
-      run: |
-        docker push ghcr.io/${{ github.repository }}:jvm_${GITHUB_SHA}
-        docker tag ghcr.io/${{ github.repository }}:jvm_${GITHUB_SHA} ghcr.io/${{ github.repository }}:jvm
-        docker push ghcr.io/${{ github.repository }}:jvm
-    - name: Generate digest
-      if: github.ref == 'refs/heads/main'
-      run: |
-        cat <<EOF > image.yaml
-        image: $(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ github.repository }}:jvm_${GITHUB_SHA})
-        git_revision: ${GITHUB_SHA}
-        EOF
-    - name: Upload artifact
-      if: github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v2
-      with:
-        name: image
-        path: image.yaml
+    uses: making/workflows/.github/workflows/build-docker-image-maven-jvm.yaml@main
+    with:
+      image_file: image.yaml
   save-image-jvm:
     if: github.ref == 'refs/heads/main'
     needs: build-jvm-image
