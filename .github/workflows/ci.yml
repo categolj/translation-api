@@ -82,6 +82,6 @@ jobs:
   save-image-jvm:
     if: github.ref == 'refs/heads/main'
     needs: build-jvm-image
-    uses: ./.github/workflows/save-images.yaml
+    uses: making/workflows/.github/workflows/save-images.yaml@main
     with:
       target: image.yaml
