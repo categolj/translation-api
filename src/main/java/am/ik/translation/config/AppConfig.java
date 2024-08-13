@@ -10,6 +10,7 @@ import org.zalando.logbook.spring.LogbookClientHttpRequestInterceptor;
 import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.backoff.FixedBackOff;
@@ -37,6 +38,12 @@ public class AppConfig {
 	@Bean
 	public WebhookVerifierRequestBodyAdvice webhookVerifierRequestBodyAdvice() {
 		return WebhookVerifierRequestBodyAdvice.githubSha256(this.githubProps.webhookSecret());
+	}
+
+	// https://github.com/spring-projects/spring-boot/issues/34622#issuecomment-2243481536
+	@Bean
+	public ContextPropagatingTaskDecorator contextPropagatingTaskDecorator() {
+		return new ContextPropagatingTaskDecorator();
 	}
 
 }
