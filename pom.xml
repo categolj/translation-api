@@ -141,6 +141,14 @@
 						<spring.security.version>${spring-security.version}
 						</spring.security.version>
 					</additionalProperties>
+					<image>
+						<env>
+							<BP_OCI_SOURCE>https://github.com/${env.GITHUB_REPOSITORY}</BP_OCI_SOURCE>
+							<BP_OCI_REVISION>${env.GITHUB_SHA}</BP_OCI_REVISION>
+							<BP_JVM_CDS_ENABLED>true</BP_JVM_CDS_ENABLED>
+							<CDS_TRAINING_JAVA_TOOL_OPTIONS>-Dgithub.webhook-secret=opensesami</CDS_TRAINING_JAVA_TOOL_OPTIONS>
+						</env>
+					</image>
 				</configuration>
 			</plugin>
 			<plugin>
