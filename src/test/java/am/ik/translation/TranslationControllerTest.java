@@ -9,19 +9,16 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.util.StreamUtils;
-import org.springframework.web.client.DefaultResponseErrorHandler;
 import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -31,7 +28,7 @@ import static org.mockito.Mockito.verify;
 		properties = { "github.webhook-secret=opensesami", "logging.logback.ecs-encoder.enabled=false" })
 class TranslationControllerTest {
 
-	@MockBean
+	@MockitoBean
 	TranslationService translationService;
 
 	@Autowired
@@ -47,11 +44,7 @@ class TranslationControllerTest {
 		if (this.restClient == null) {
 			this.restClient = this.restClientBuilder.baseUrl("http://localhost:%d".formatted(port))
 				.defaultHeader("X-GitHub-Event", "issues")
-				.defaultStatusHandler(new DefaultResponseErrorHandler() {
-					@Override
-					public void handleError(ClientHttpResponse response) {
-
-					}
+				.defaultStatusHandler(__ -> true, (req, res) -> {
 				})
 				.build();
 		}
