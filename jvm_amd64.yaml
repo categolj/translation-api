@@ -1,2 +1,2 @@
-image: ghcr.io/categolj/translation-api@sha256:2823f1b11a61401c77cf337a29a2d37a1c469b09194767a9b1563a272e077b50
-git_revision: 7f7fb34fd48d5e6f45eb58141890e15a6ed1ae9c
+image: ghcr.io/categolj/translation-api@sha256:a2b1b6729a1866271bf0b8e736bcb1ea8b22770984359ed6a21b9267dda71cdc
+git_revision: 32eefa70baee45b7e581b471c8966f07f98a6204
