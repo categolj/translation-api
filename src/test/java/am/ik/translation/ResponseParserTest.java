@@ -28,4 +28,29 @@ class ResponseParserTest {
 				""".trim()));
 	}
 
+
+	@Test
+	void parseTextWithThink() {
+		TitleAndContent titleAndContent = ResponseParser.parseText("""
+				<think>
+				This is a thinking part.
+				This part should be removed.
+				</think>
+				== title ==
+				Hello World
+
+				== content ==
+				ABCDEFGH
+				IJKLMNOP
+				QRSTUVWX
+				YZ
+				""");
+		assertThat(titleAndContent).isEqualTo(new TitleAndContent("Hello World", """
+				ABCDEFGH
+				IJKLMNOP
+				QRSTUVWX
+				YZ
+				""".trim()));
+	}
+
 }

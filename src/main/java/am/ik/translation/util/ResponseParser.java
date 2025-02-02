@@ -12,8 +12,9 @@ public class ResponseParser {
 		Pattern patternTitle = Pattern.compile(titlePattern, Pattern.DOTALL);
 		Pattern patternContent = Pattern.compile(contentPattern, Pattern.DOTALL);
 
-		Matcher matcherTitle = patternTitle.matcher(text);
-		Matcher matcherContent = patternContent.matcher(text);
+		String thinkRemovedText = text.replaceAll("(?s)<think>.*?</think>", "").trim();
+		Matcher matcherTitle = patternTitle.matcher(thinkRemovedText);
+		Matcher matcherContent = patternContent.matcher(thinkRemovedText);
 
 		String title = "";
 		String content = "";
