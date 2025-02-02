@@ -28,7 +28,6 @@ class ResponseParserTest {
 				""".trim()));
 	}
 
-
 	@Test
 	void parseTextWithThink() {
 		TitleAndContent titleAndContent = ResponseParser.parseText("""
