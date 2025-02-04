@@ -38,6 +38,21 @@
 		<dependency>
 			<groupId>io.opentelemetry</groupId>
 			<artifactId>opentelemetry-exporter-otlp</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>io.opentelemetry</groupId>
+					<artifactId>opentelemetry-exporter-sender-okhttp</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-exporter-sender-jdk</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry.contrib</groupId>
+			<artifactId>opentelemetry-samplers</artifactId>
+			<version>1.41.0-alpha</version>
 		</dependency>
 		<dependency>
 			<groupId>am.ik.spring</groupId>
