@@ -17,6 +17,7 @@ import am.ik.translation.openai.ChatCompletionRequest;
 import am.ik.translation.openai.ChatCompletionResponse;
 import am.ik.translation.openai.ChatMessage;
 import am.ik.translation.openai.ChatResponseChoice;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -69,7 +70,9 @@ public class NativeConfig {
 				.registerType(ChatMessage.class, MemberCategory.INVOKE_PUBLIC_METHODS,
 						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
 				.registerType(ChatResponseChoice.class, MemberCategory.INVOKE_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
+				.registerType(OpenAiChatOptions.class, MemberCategory.DECLARED_FIELDS,
+						MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_PUBLIC_METHODS);
 		}
 
 	}
