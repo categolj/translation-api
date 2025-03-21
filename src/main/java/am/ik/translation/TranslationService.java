@@ -1,12 +1,5 @@
 package am.ik.translation;
 
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import am.ik.translation.entry.Entry;
 import am.ik.translation.entry.EntryBuilder;
 import am.ik.translation.entry.EntryProps;
@@ -18,12 +11,18 @@ import am.ik.translation.github.CreateBranchResponse;
 import am.ik.translation.github.CreateContentRequestBuilders;
 import am.ik.translation.github.CreatePullResponse;
 import am.ik.translation.github.GithubProps;
-import am.ik.translation.openai.ChatCompletionResponse;
-import am.ik.translation.openai.OpenAiProps;
 import am.ik.translation.util.ResponseParser;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Map;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.prompt.PromptTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
@@ -33,28 +32,30 @@ import org.springframework.web.client.RestClient;
 
 import static am.ik.translation.github.CreateContentRequestBuilder.createContentRequest;
 import static am.ik.translation.github.CreatePullRequestBuilder.createPullRequest;
-import static am.ik.translation.openai.ChatCompletionRequestBuilder.chatCompletionRequest;
-import static am.ik.translation.openai.ChatMessageBuilder.chatMessage;
 
 @Service
 public class TranslationService {
 
 	private final RestClient restClient;
 
-	private final OpenAiProps openAiProps;
-
 	private final GithubProps githubProps;
 
 	private final EntryProps entryProps;
 
+	private final ChatClient chatClient;
+
+	private final String chatModel;
+
 	private final Logger logger = LoggerFactory.getLogger(TranslationService.class);
 
-	public TranslationService(RestClient.Builder restClientBuilder, OpenAiProps openAiProps, GithubProps githubProps,
-			EntryProps entryProps) {
+	public TranslationService(RestClient.Builder restClientBuilder, GithubProps githubProps, EntryProps entryProps,
+			ChatClient.Builder chatClientBuilder,
+			@Value("${spring.ai.openai.chat.options.model:N/A}") String chatModel) {
 		this.restClient = restClientBuilder.build();
-		this.openAiProps = openAiProps;
 		this.githubProps = githubProps;
 		this.entryProps = entryProps;
+		this.chatClient = chatClientBuilder.build();
+		this.chatModel = chatModel;
 	}
 
 	@Async
@@ -67,7 +68,6 @@ public class TranslationService {
 	}
 
 	public void sendComment(int issueNumber) {
-		OpenAiProps.Options chatOptions = this.openAiProps.chat().options();
 		this.restClient.post()
 			.uri("%s/repos/making/ik.am_en/issues/{issueNumber}/comments".formatted(this.githubProps.apiUrl()),
 					issueNumber)
@@ -76,8 +76,7 @@ public class TranslationService {
 			.header(HttpHeaders.ACCEPT, "application/vnd.github+json")
 			.contentType(MediaType.APPLICATION_JSON)
 			.body(Map.of("body",
-					"We will now start translating using OpenAI (%s). please wait a moment."
-						.formatted(chatOptions.model())))
+					"We will now start translating using OpenAI (%s). please wait a moment.".formatted(this.chatModel)))
 			.retrieve()
 			.toBodilessEntity();
 	}
@@ -87,41 +86,34 @@ public class TranslationService {
 			.uri("%s/entries/{entryId}".formatted(this.entryProps.apiUrl()), entryId)
 			.retrieve()
 			.body(Entry.class);
-		String prompt = """
-				Please translate the following Japanese blog entry into English. Both title and content are to be translated.
-				The content is written in markdown.
-				Please include the <code>and <pre> elements in the markdown content in the result without translating them.
-				The part surrounded by ```` in markdown is the source code, so please do not translate the Japanese in that code.
-				The format of the input and the output should be following format and do not include any explanations.
-
-				== title ==
-				translated title
-
-				== content ==
-				translated content (markdown)
-
-				The input entry is the following:
-
-				== title ==
-				%s
-
-				== content ==
-				%s
+		PromptTemplate promptTemplate = new PromptTemplate(
 				"""
-			.formatted(Objects.requireNonNull(entry).frontMatter().title(), entry.content());
-		OpenAiProps.Options chatOptions = this.openAiProps.chat().options();
-		ChatCompletionResponse response = this.restClient.post()
-			.uri("%s/v1/chat/completions".formatted(this.openAiProps.baseUrl()))
-			.header(HttpHeaders.AUTHORIZATION, "Bearer %s".formatted(this.openAiProps.apiKey()))
-			.body(chatCompletionRequest().messages(List.of(chatMessage().content(prompt).role("user").build()))
-				.temperature(chatOptions.temperature())
-				.model(chatOptions.model())
-				.stream(chatOptions.stream())
-				.build())
-			.retrieve()
-			.body(ChatCompletionResponse.class);
-		ResponseParser.TitleAndContent titleAndContent = ResponseParser
-			.parseText(Objects.requireNonNull(response).choices().get(0).message().content());
+						Please translate the following Japanese blog entry into English. Both title and content are to be translated.
+						The content is written in markdown.
+						Please include the <code>and <pre> elements in the markdown content in the result without translating them.
+						The part surrounded by ```` in markdown is the source code, so please do not translate the Japanese in that code.
+						The format of the input and the output should be following format and do not include any explanations.
+
+						== title ==
+						translated title
+
+						== content ==
+						translated content (markdown)
+
+						The input entry is the following:
+
+						== title ==
+						{title}
+
+						== content ==
+						{content}
+						""");
+		Prompt prompt = promptTemplate.create(Map.of( //
+				"title", Objects.requireNonNull(entry).frontMatter().title(), //
+				"content", entry.content() //
+		));
+		String text = this.chatClient.prompt(prompt).call().content();
+		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
 		return EntryBuilder.from(entry)
 			.content(
 					"""
@@ -129,13 +121,12 @@ public class TranslationService {
 							> It may be edited eventually, but please be aware that it may contain incorrect information at this time.
 
 							"""
-						.formatted(chatOptions.model()) + titleAndContent.content())
+						.formatted(this.chatModel) + titleAndContent.content())
 			.frontMatter(FrontMatterBuilder.from(entry.frontMatter()).title(titleAndContent.title()).build())
 			.build();
 	}
 
 	public CreatePullResponse sendPullRequest(Entry translated, int issueNumber) {
-		OpenAiProps.Options chatOptions = this.openAiProps.chat().options();
 		CreateBranchResponse branchResponse = this.restClient.get()
 			.uri("%s/repos/making/ik.am_en/branches/main".formatted(this.githubProps.apiUrl()))
 			.retrieve()
@@ -154,7 +145,7 @@ public class TranslationService {
 				Translate %s by OpenAI (%s)
 
 				closes gh-%d
-				""".formatted(fileName, chatOptions.model(), issueNumber).trim();
+				""".formatted(fileName, this.chatModel, issueNumber).trim();
 		CreateContentRequestBuilders.Optionals ccrBuilder = createContentRequest().message(commitMessage)
 			.branch(branchName)
 			.content(Base64.getEncoder().encodeToString(translated.toMarkdown().getBytes(StandardCharsets.UTF_8)))

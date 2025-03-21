@@ -25,7 +25,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-		properties = { "github.webhook-secret=opensesami", "logging.logback.ecs-encoder.enabled=false" })
+		properties = { "github.webhook-secret=opensesami", "logging.logback.ecs-encoder.enabled=false",
+				"spring.ai.openai.api-key=dummy" })
 class TranslationControllerTest {
 
 	@MockitoBean
