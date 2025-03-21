@@ -20,8 +20,6 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -82,12 +80,13 @@ public class TranslationService {
 	}
 
 	public Entry translate(Long entryId) {
-		Entry entry = this.restClient.get()
+		Entry entry = Objects.requireNonNull(this.restClient.get()
 			.uri("%s/entries/{entryId}".formatted(this.entryProps.apiUrl()), entryId)
 			.retrieve()
-			.body(Entry.class);
-		PromptTemplate promptTemplate = new PromptTemplate(
-				"""
+			.body(Entry.class));
+		String text = this.chatClient.prompt()
+			.user(u -> u
+				.text("""
 						Please translate the following Japanese blog entry into English. Both title and content are to be translated.
 						The content is written in markdown.
 						Please include the <code>and <pre> elements in the markdown content in the result without translating them.
@@ -107,12 +106,11 @@ public class TranslationService {
 
 						== content ==
 						{content}
-						""");
-		Prompt prompt = promptTemplate.create(Map.of( //
-				"title", Objects.requireNonNull(entry).frontMatter().title(), //
-				"content", entry.content() //
-		));
-		String text = this.chatClient.prompt(prompt).call().content();
+						""")
+				.param("title", entry.frontMatter().title())
+				.param("content", entry.content()))
+			.call()
+			.content();
 		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
 		return EntryBuilder.from(entry)
 			.content(
