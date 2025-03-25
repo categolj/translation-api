@@ -155,23 +155,23 @@ classDiagram
 チャンク単位の翻訳を効果的に行うための特殊なプロンプト構造：
 
 ```
-# 翻訳コンテキスト
-これまでに翻訳された主な用語:
+# Translation Context
+Previously translated terminology:
 ${terminology}
 
-直前のセクションの内容:
+Content from previous section:
 ${previousContext}
 
-# 翻訳指示
-以下のマークダウン形式の日本語テキストを英語に翻訳してください。
-コードブロック内のコードやHTML要素は翻訳せず、そのまま保持してください。
-${chunkType}セクションの翻訳を行ってください。
+# Translation Instructions
+Please translate the following Japanese markdown text to English.
+Preserve code blocks and HTML elements in the markdown without translating them.
+Translate the ${chunkType} section.
 
-# 入力テキスト
+# Input Text
 ${inputChunk}
 
-# 出力形式
-マークダウン形式で翻訳結果のみを出力してください。
+# Output Format
+Return only the translation result in markdown format.
 ```
 
 ## 3. 実装計画
