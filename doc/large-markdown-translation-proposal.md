@@ -260,7 +260,200 @@ graph TD
     class C,D,E,F process;
 ```
 
-### 4.1 並列処理
+### 4.1 効果的なサイズ判定の実装
+
+マークダウンのサイズを効果的に判定するための具体的な実装方法を示します。
+
+```mermaid
+classDiagram
+    class TokenCounter {
+        -double JAPANESE_CHAR_TO_TOKEN_RATIO
+        -double CODE_CHAR_TO_TOKEN_RATIO
+        +estimateTokens(String markdown) int
+        -detectContentType(String line) ContentType
+    }
+    
+    class MarkdownSizeAnalyzer {
+        -TokenCounter tokenCounter
+        -OpenAIModel model
+        -int SPLIT_THRESHOLD
+        +isTooBig(String markdown) boolean
+        +analyzeSize(String markdown) SizeAnalysisResult
+    }
+    
+    class OpenAIModel {
+        <<enumeration>>
+        +String modelName
+        +int maxTokens
+        +getMaxInputTokens() int
+    }
+    
+    class SizeAnalysisResult {
+        +int estimatedTokens
+        +int maxAllowedTokens
+        +boolean needsSplit
+        +double usagePercentage
+    }
+    
+    class ContentType {
+        <<enumeration>>
+        NORMAL_TEXT
+        CODE_BLOCK
+        MATH_EXPRESSION
+        TABLE
+    }
+    
+    MarkdownSizeAnalyzer --> TokenCounter : uses
+    MarkdownSizeAnalyzer --> OpenAIModel : references
+    MarkdownSizeAnalyzer --> SizeAnalysisResult : creates
+    TokenCounter --> ContentType : uses
+```
+
+#### トークン数の推定
+
+OpenAI APIは入力を「トークン」単位で計測します。サイズ判定には正確なトークン数の推定が重要です：
+
+```java
+public class TokenCounter {
+    // Estimate approximately 0.7 tokens per character for Japanese text
+    private static final double JAPANESE_CHAR_TO_TOKEN_RATIO = 0.7;
+    
+    // Code blocks typically have different token ratio per character
+    private static final double CODE_CHAR_TO_TOKEN_RATIO = 0.5;
+    
+    /**
+     * Estimates token count for markdown text
+     */
+    public int estimateTokens(String markdown) {
+        int totalEstimatedTokens = 0;
+        boolean inCodeBlock = false;
+        
+        // Process line by line
+        String[] lines = markdown.split("\n");
+        for (String line : lines) {
+            // Detect code block start/end
+            if (line.trim().startsWith("```")) {
+                inCodeBlock = !inCodeBlock;
+            }
+            
+            // Apply appropriate ratio based on content type
+            double ratio = inCodeBlock ? CODE_CHAR_TO_TOKEN_RATIO : JAPANESE_CHAR_TO_TOKEN_RATIO;
+            totalEstimatedTokens += line.length() * ratio;
+        }
+        
+        // Add safety factor
+        return (int) (totalEstimatedTokens * 1.1);
+    }
+}
+```
+
+#### モデル別のトークン上限設定
+
+GPT-4o-mini をデフォルトモデルとして使用します：
+
+```java
+public enum OpenAIModel {
+    GPT_3_5_TURBO("gpt-3.5-turbo", 4096),
+    GPT_4("gpt-4", 8192),
+    GPT_4_TURBO("gpt-4-turbo", 128000),
+    GPT_4O_MINI("gpt-4o-mini", 16000); // Default model
+    
+    private final String modelName;
+    private final int maxTokens;
+    
+    // Calculate actual usable tokens, reserving space for response
+    public int getMaxInputTokens() {
+        return (int) (maxTokens * 0.7); // Reserve 30% for response
+    }
+    
+    // Constructors and getters omitted
+}
+```
+
+#### サイズ判定ロジック
+
+```java
+/**
+ * Analyzes markdown size and determines if chunking is necessary
+ */
+public class MarkdownSizeAnalyzer {
+    private final TokenCounter tokenCounter;
+    private final OpenAIModel model;
+    
+    // Threshold for splitting (max input tokens minus margin)
+    private final int SPLIT_THRESHOLD;
+    
+    public MarkdownSizeAnalyzer(OpenAIModel model) {
+        this.tokenCounter = new TokenCounter();
+        this.model = model;
+        this.SPLIT_THRESHOLD = model.getMaxInputTokens() - 500; // 500 token margin
+    }
+    
+    /**
+     * Returns size analysis result for the given markdown
+     */
+    public SizeAnalysisResult analyzeSize(String markdown) {
+        int estimatedTokens = tokenCounter.estimateTokens(markdown);
+        boolean needsSplit = estimatedTokens > SPLIT_THRESHOLD;
+        double usagePercentage = (double) estimatedTokens / model.getMaxInputTokens() * 100;
+        
+        return new SizeAnalysisResult(
+            estimatedTokens,
+            model.getMaxInputTokens(),
+            needsSplit,
+            usagePercentage
+        );
+    }
+    
+    /**
+     * Record containing size analysis results
+     */
+    public record SizeAnalysisResult(
+        int estimatedTokens,
+        int maxAllowedTokens,
+        boolean needsSplit,
+        double usagePercentage
+    ) {}
+}
+```
+
+#### TranslationServiceでの統合例
+
+```java
+@Service
+public class TranslationService {
+    // Other fields omitted
+    
+    private final MarkdownSizeAnalyzer sizeAnalyzer;
+    private final MarkdownSegmenter segmenter;
+    private final ChunkTranslator chunkTranslator;
+    
+    public Entry translate(Long entryId) {
+        Entry entry = // Fetch entry from Blog API
+        
+        // Analyze markdown size
+        String content = entry.content();
+        MarkdownSizeAnalyzer.SizeAnalysisResult sizeResult = 
+            sizeAnalyzer.analyzeSize(content);
+            
+        String translatedContent;
+        if (sizeResult.needsSplit()) {
+            // Process large markdown with chunking
+            translatedContent = translateLargeMarkdown(content);
+            logger.info("Large markdown processed with chunks: {}% of limit", 
+                       String.format("%.2f", sizeResult.usagePercentage()));
+        } else {
+            // Normal translation process
+            translatedContent = translateNormal(content);
+        }
+        
+        // Create new Entry with translation results
+        // ...
+    }
+}
+```
+
+### 4.2 並列処理
 
 - **独立したチャンクは並列翻訳**：相互依存のないチャンクは並行して処理
 - **コンテキスト依存チャンクは逐次処理**：前のセクションの翻訳を参照必要なものは順次処理
