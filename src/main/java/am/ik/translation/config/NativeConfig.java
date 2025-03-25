@@ -13,10 +13,6 @@ import am.ik.translation.github.CreateContentRequest;
 import am.ik.translation.github.CreatePullRequest;
 import am.ik.translation.github.CreatePullResponse;
 import am.ik.translation.github.IssueEvent;
-import am.ik.translation.openai.ChatCompletionRequest;
-import am.ik.translation.openai.ChatCompletionResponse;
-import am.ik.translation.openai.ChatMessage;
-import am.ik.translation.openai.ChatResponseChoice;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
@@ -62,14 +58,6 @@ public class NativeConfig {
 				.registerType(IssueEvent.Issue.class, MemberCategory.INVOKE_PUBLIC_METHODS,
 						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
 				.registerType(IssueEvent.Repository.class, MemberCategory.INVOKE_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-				.registerType(ChatCompletionRequest.class, MemberCategory.INVOKE_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-				.registerType(ChatCompletionResponse.class, MemberCategory.INVOKE_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-				.registerType(ChatMessage.class, MemberCategory.INVOKE_PUBLIC_METHODS,
-						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-				.registerType(ChatResponseChoice.class, MemberCategory.INVOKE_PUBLIC_METHODS,
 						MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
 				.registerType(OpenAiChatOptions.class, MemberCategory.DECLARED_FIELDS,
 						MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_PUBLIC_METHODS);
