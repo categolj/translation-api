@@ -11,12 +11,19 @@ import am.ik.translation.github.CreateBranchResponse;
 import am.ik.translation.github.CreateContentRequestBuilders;
 import am.ik.translation.github.CreatePullResponse;
 import am.ik.translation.github.GithubProps;
+import am.ik.translation.markdown.ChunkTranslator;
+import am.ik.translation.markdown.MarkdownSegment;
+import am.ik.translation.markdown.MarkdownSegmenter;
+import am.ik.translation.markdown.MarkdownSizeAnalyzer;
+import am.ik.translation.markdown.OpenAIModel;
 import am.ik.translation.util.ResponseParser;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -46,6 +53,10 @@ public class TranslationService {
 
 	private final Logger logger = LoggerFactory.getLogger(TranslationService.class);
 
+	private final MarkdownSizeAnalyzer sizeAnalyzer;
+
+	private final MarkdownSegmenter segmenter;
+
 	public TranslationService(RestClient.Builder restClientBuilder, GithubProps githubProps, EntryProps entryProps,
 			ChatClient.Builder chatClientBuilder,
 			@Value("${spring.ai.openai.chat.options.model:N/A}") String chatModel) {
@@ -54,6 +65,11 @@ public class TranslationService {
 		this.entryProps = entryProps;
 		this.chatClient = chatClientBuilder.build();
 		this.chatModel = chatModel;
+
+		// Initialize markdown processing components
+		OpenAIModel model = OpenAIModel.fromModelName(chatModel);
+		this.sizeAnalyzer = new MarkdownSizeAnalyzer(model);
+		this.segmenter = new MarkdownSegmenter();
 	}
 
 	@Async
@@ -84,6 +100,70 @@ public class TranslationService {
 			.uri("%s/entries/{entryId}".formatted(this.entryProps.apiUrl()), entryId)
 			.retrieve()
 			.body(Entry.class));
+
+		// Analyze markdown size
+		String content = entry.content();
+		MarkdownSizeAnalyzer.SizeAnalysisResult sizeResult = sizeAnalyzer.analyzeSize(content);
+
+		String translatedContent;
+		String translatedTitle;
+
+		if (sizeResult.needsSplit()) {
+			// Process large markdown with chunking
+			logger.info("Large markdown detected ({}% of limit). Processing with chunking...",
+					String.format("%.2f", sizeResult.usagePercentage()));
+			TranslationResult result = translateLargeMarkdown(entry);
+			translatedContent = result.content();
+			translatedTitle = result.title();
+		}
+		else {
+			// Normal translation process
+			TranslationResult result = translateNormal(entry);
+			translatedContent = result.content();
+			translatedTitle = result.title();
+		}
+
+		return EntryBuilder.from(entry)
+			.content(
+					"""
+							> ⚠️ This article was automatically translated by OpenAI (%s).
+							> It may be edited eventually, but please be aware that it may contain incorrect information at this time.
+
+							"""
+						.formatted(this.chatModel) + translatedContent)
+			.frontMatter(FrontMatterBuilder.from(entry.frontMatter()).title(translatedTitle).build())
+			.build();
+	}
+
+	/**
+	 * Translate a large markdown document by chunking it into segments
+	 */
+	private TranslationResult translateLargeMarkdown(Entry entry) {
+		// Step 1: Segment the markdown
+		List<MarkdownSegment> segments = segmenter.segment(entry.content());
+		logger.info("Segmented markdown into {} chunks", segments.size());
+
+		// Step 2: Create a translator for chunks
+		ChunkTranslator translator = new ChunkTranslator(this.chatClient, this.chatModel);
+
+		// Step 3: Translate each segment
+		List<MarkdownSegment> translatedSegments = translator.translateBatch(segments);
+
+		// Step 4: Combine the translated segments
+		String translatedContent = translatedSegments.stream()
+			.map(MarkdownSegment::content)
+			.collect(Collectors.joining("\n"));
+
+		// Step 5: Translate the title using the same translator
+		String translatedTitle = translateTitle(entry.frontMatter().title());
+
+		return new TranslationResult(translatedTitle, translatedContent);
+	}
+
+	/**
+	 * Translate an entry normally (without chunking)
+	 */
+	private TranslationResult translateNormal(Entry entry) {
 		String text = this.chatClient.prompt()
 			.user(u -> u
 				.text("""
@@ -112,16 +192,22 @@ public class TranslationService {
 			.call()
 			.content();
 		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
-		return EntryBuilder.from(entry)
-			.content(
-					"""
-							> ⚠️ This article was automatically translated by OpenAI (%s).
-							> It may be edited eventually, but please be aware that it may contain incorrect information at this time.
+		return new TranslationResult(titleAndContent.title(), titleAndContent.content());
+	}
 
-							"""
-						.formatted(this.chatModel) + titleAndContent.content())
-			.frontMatter(FrontMatterBuilder.from(entry.frontMatter()).title(titleAndContent.title()).build())
-			.build();
+	/**
+	 * Translate only the title
+	 */
+	private String translateTitle(String title) {
+		String text = this.chatClient.prompt().user("""
+				Please translate the following Japanese blog title into English:
+
+				%s
+
+				Return only the translated title with no additional text or formatting.
+				""".formatted(title)).call().content();
+
+		return text != null ? text.trim() : "";
 	}
 
 	public CreatePullResponse sendPullRequest(Entry translated, int issueNumber) {
@@ -179,6 +265,12 @@ public class TranslationService {
 					""".formatted(translated.formatId(), issueNumber)).head(branchName).base("main").build())
 			.retrieve()
 			.body(CreatePullResponse.class);
+	}
+
+	/**
+	 * Record for translation result containing title and content
+	 */
+	private record TranslationResult(String title, String content) {
 	}
 
 }
