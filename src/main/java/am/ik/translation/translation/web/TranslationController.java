@@ -1,9 +1,10 @@
-package am.ik.translation;
+package am.ik.translation.translation.web;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import am.ik.translation.github.IssueEvent;
+import am.ik.translation.translation.TranslationService;
 import am.ik.webhook.annotation.WebhookPayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

@@ -1,8 +1,9 @@
-package am.ik.translation;
+package am.ik.translation.translation.web;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+import am.ik.translation.translation.TranslationService;
 import am.ik.webhook.WebhookHttpHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

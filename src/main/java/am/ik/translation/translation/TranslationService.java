@@ -1,4 +1,4 @@
-package am.ik.translation;
+package am.ik.translation.translation;
 
 import am.ik.translation.entry.Entry;
 import am.ik.translation.entry.EntryBuilder;
