@@ -74,7 +74,8 @@ public class TranslationService {
 			.header(HttpHeaders.ACCEPT, "application/vnd.github+json")
 			.contentType(MediaType.APPLICATION_JSON)
 			.body(Map.of("body",
-					"We will now start translating using OpenAI (%s). please wait a moment.".formatted(this.chatModel)))
+					"We will now start translating using OpenAI API (%s). please wait a moment."
+						.formatted(this.chatModel)))
 			.retrieve()
 			.toBodilessEntity();
 	}
@@ -84,38 +85,37 @@ public class TranslationService {
 			.uri("%s/entries/{entryId}".formatted(this.entryProps.apiUrl()), entryId)
 			.retrieve()
 			.body(Entry.class));
+		logger.info("Start translation entryId={}, model={}", entryId, chatModel);
 		String text = this.chatClient.prompt()
-			.user(u -> u
-				.text("""
-						Please translate the following Japanese blog entry into English. Both title and content are to be translated.
-						The content is written in markdown.
-						Please include the <code>and <pre> elements in the markdown content in the result without translating them.
-						The part surrounded by ```` in markdown is the source code, so please do not translate the Japanese in that code.
-						The format of the input and the output should be following format and do not include any explanations.
+			.system("""
+					You are a skilled Japanese-to-English translator, specializing in technical documentation translation.
 
-						== title ==
-						translated title
+					Please translate the user's input which ia a Japanese blog entry into English. Both title and content are to be translated.
+					The content is written in markdown.
+					Please include the <code>and <pre> elements in the markdown content in the result without translating them.
+					The part surrounded by ```` in markdown is the source code, so please do not translate the Japanese in that code.
+					The format of the input and the output should be following format and do not include any explanations.
 
-						== content ==
-						translated content (markdown)
+					== title ==
+					translated title
 
-						The input entry is the following:
+					== content ==
+					translated content (markdown)
+					""")
+			.user(u -> u.text("""
+					== title ==
+					{title}
 
-						== title ==
-						{title}
-
-						== content ==
-						{content}
-						""")
-				.param("title", entry.frontMatter().title())
-				.param("content", entry.content()))
+					== content ==
+					{content}
+					""").param("title", entry.frontMatter().title()).param("content", entry.content()))
 			.call()
 			.content();
 		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
 		return EntryBuilder.from(entry)
 			.content(
 					"""
-							> ⚠️ This article was automatically translated by OpenAI (%s).
+							> ⚠️ This article was automatically translated by OpenAI API (%s).
 							> It may be edited eventually, but please be aware that it may contain incorrect information at this time.
 
 							"""
