@@ -5,13 +5,16 @@ import am.ik.translation.github.GithubProps;
 import am.ik.webhook.spring.WebhookVerifierRequestBodyAdvice;
 import java.util.Set;
 import org.springframework.boot.web.client.RestClientCustomizer;
+import org.springframework.boot.web.reactive.function.client.WebClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.util.backoff.ExponentialBackOff;
+import org.zalando.logbook.Logbook;
 import org.zalando.logbook.spring.LogbookClientHttpRequestInterceptor;
+import org.zalando.logbook.spring.webflux.LogbookExchangeFilterFunction;
 
 @Configuration(proxyBeanMethods = false)
 public class AppConfig {
@@ -43,6 +46,11 @@ public class AppConfig {
 			), options -> options.sensitiveHeaders(Set.of(HttpHeaders.AUTHORIZATION.toLowerCase(),
 					HttpHeaders.PROXY_AUTHENTICATE.toLowerCase(), HttpHeaders.COOKIE.toLowerCase(),
 					HttpHeaders.SET_COOKIE.toLowerCase(), "x-amz-security-token"))));
+	}
+
+	@Bean
+	public WebClientCustomizer webClientCustomizer(Logbook logbook) {
+		return builder -> builder.filter(new LogbookExchangeFilterFunction(logbook));
 	}
 
 	@Bean

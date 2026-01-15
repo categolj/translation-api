@@ -109,8 +109,11 @@ public class TranslationService {
 					== content ==
 					{content}
 					""").param("title", entry.frontMatter().title()).param("content", entry.content()))
-			.call()
-			.content();
+			.stream()
+			.content()
+			.collectList()
+			.map(list -> String.join("", list))
+			.block();
 		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
 		return EntryBuilder.from(entry)
 			.content(

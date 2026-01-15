@@ -67,6 +67,11 @@
       <version>0.3.2</version>
     </dependency>
     <dependency>
+      <groupId>org.zalando</groupId>
+      <artifactId>logbook-spring-boot-webflux-autoconfigure</artifactId>
+      <version>3.12.3</version>
+    </dependency>
+    <dependency>
       <groupId>am.ik.webhook</groupId>
       <artifactId>webhook-verifier</artifactId>
       <version>0.1.2</version>
