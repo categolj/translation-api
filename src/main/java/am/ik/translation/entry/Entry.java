@@ -11,13 +11,14 @@ public record Entry(Long entryId, FrontMatter frontMatter, String content, Autho
 				---
 				title: %s
 				tags: %s
-				categories: %s%s%s
+				categories: %s%s%s%s
 				---
 
 				%s
 				""".formatted(frontMatter.title(),
 				frontMatter.tags().stream().map(t -> "\"%s\"".formatted(t.name())).toList(),
 				frontMatter.categories().stream().map(c -> "\"%s\"".formatted(c.name())).toList(),
+				frontMatter.summary() == null ? "" : "%nsummary: %s".formatted(frontMatter.summary()),
 				created.date() == null ? "" : "%ndate: %s".formatted(created.date()),
 				updated.date() == null ? "" : "%nupdated: %s".formatted(updated.date()), content);
 	}

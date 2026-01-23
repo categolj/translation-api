@@ -1,7 +1,7 @@
 package am.ik.translation;
 
 import am.ik.translation.util.ResponseParser;
-import am.ik.translation.util.ResponseParser.TitleAndContent;
+import am.ik.translation.util.ResponseParser.TranslatedContent;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,7 +10,7 @@ class ResponseParserTest {
 
 	@Test
 	void parseText() {
-		TitleAndContent titleAndContent = ResponseParser.parseText("""
+		TranslatedContent translatedContent = ResponseParser.parseText("""
 				== title ==
 				Hello World
 
@@ -20,7 +20,7 @@ class ResponseParserTest {
 				QRSTUVWX
 				YZ
 				""");
-		assertThat(titleAndContent).isEqualTo(new TitleAndContent("Hello World", """
+		assertThat(translatedContent).isEqualTo(new TranslatedContent("Hello World", null, """
 				ABCDEFGH
 				IJKLMNOP
 				QRSTUVWX
@@ -29,8 +29,32 @@ class ResponseParserTest {
 	}
 
 	@Test
+	void parseTextWithSummary() {
+		TranslatedContent translatedContent = ResponseParser.parseText("""
+				== title ==
+				Hello World
+
+				== summary ==
+				This is a summary of the article.
+
+				== content ==
+				ABCDEFGH
+				IJKLMNOP
+				QRSTUVWX
+				YZ
+				""");
+		assertThat(translatedContent)
+			.isEqualTo(new TranslatedContent("Hello World", "This is a summary of the article.", """
+					ABCDEFGH
+					IJKLMNOP
+					QRSTUVWX
+					YZ
+					""".trim()));
+	}
+
+	@Test
 	void parseTextWithThink() {
-		TitleAndContent titleAndContent = ResponseParser.parseText("""
+		TranslatedContent translatedContent = ResponseParser.parseText("""
 				<think>
 				This is a thinking part.
 				This part should be removed.
@@ -44,12 +68,40 @@ class ResponseParserTest {
 				QRSTUVWX
 				YZ
 				""");
-		assertThat(titleAndContent).isEqualTo(new TitleAndContent("Hello World", """
+		assertThat(translatedContent).isEqualTo(new TranslatedContent("Hello World", null, """
 				ABCDEFGH
 				IJKLMNOP
 				QRSTUVWX
 				YZ
 				""".trim()));
+	}
+
+	@Test
+	void parseTextWithSummaryAndThink() {
+		TranslatedContent translatedContent = ResponseParser.parseText("""
+				<think>
+				This is a thinking part.
+				This part should be removed.
+				</think>
+				== title ==
+				Hello World
+
+				== summary ==
+				This is a summary of the article.
+
+				== content ==
+				ABCDEFGH
+				IJKLMNOP
+				QRSTUVWX
+				YZ
+				""");
+		assertThat(translatedContent)
+			.isEqualTo(new TranslatedContent("Hello World", "This is a summary of the article.", """
+					ABCDEFGH
+					IJKLMNOP
+					QRSTUVWX
+					YZ
+					""".trim()));
 	}
 
 }

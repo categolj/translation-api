@@ -86,18 +86,23 @@ public class TranslationService {
 			.body(Entry.class));
 		logger.info("action=start_translation entryId={} model={}", entryId, chatModel);
 		long start = System.currentTimeMillis();
+		String summary = entry.frontMatter().summary();
 		String text = this.chatClient.prompt()
 			.system("""
 					You are a skilled Japanese-to-English translator, specializing in technical documentation translation.
 
-					Please translate the user's input which ia a Japanese blog entry into English. Both title and content are to be translated.
+					Please translate the user's input which is a Japanese blog entry into English. Title, summary (if present), and content are to be translated.
 					The content is written in markdown.
 					Please include the <code>and <pre> elements in the markdown content in the result without translating them.
 					The part surrounded by ```` in markdown is the source code, so please do not translate the Japanese in that code.
 					The format of the input and the output should be following format and do not include any explanations.
+					If the input contains a summary section, include it in the output. If not, omit the summary section.
 
 					== title ==
 					translated title
+
+					== summary ==
+					translated summary (only if present in input)
 
 					== content ==
 					translated content (markdown)
@@ -105,10 +110,20 @@ public class TranslationService {
 			.user(u -> u.text("""
 					== title ==
 					{title}
-
+					%s
 					== content ==
 					{content}
-					""").param("title", entry.frontMatter().title()).param("content", entry.content()))
+					""".formatted(summary != null ? """
+
+					== summary ==
+					{summary}
+
+					""" : """
+
+					"""))
+				.param("title", entry.frontMatter().title())
+				.params(summary != null ? Map.of("summary", summary) : Map.of())
+				.param("content", entry.content()))
 			.stream()
 			.content()
 			.collectList()
@@ -116,7 +131,12 @@ public class TranslationService {
 			.block();
 		long end = System.currentTimeMillis();
 		logger.info("action=finish_translation entryId={} model={} duration={}", entryId, chatModel, end - start);
-		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
+		ResponseParser.TranslatedContent translatedContent = ResponseParser.parseText(Objects.requireNonNull(text));
+		FrontMatterBuilder frontMatterBuilder = FrontMatterBuilder.from(entry.frontMatter())
+			.title(translatedContent.title());
+		if (translatedContent.summary() != null) {
+			frontMatterBuilder.summary(translatedContent.summary());
+		}
 		return EntryBuilder.from(entry)
 			.content(
 					"""
@@ -124,8 +144,8 @@ public class TranslationService {
 							> It may be edited eventually, but please be aware that it may contain incorrect information at this time.
 
 							"""
-						.formatted(this.chatModel) + titleAndContent.content())
-			.frontMatter(FrontMatterBuilder.from(entry.frontMatter()).title(titleAndContent.title()).build())
+						.formatted(this.chatModel) + translatedContent.content())
+			.frontMatter(frontMatterBuilder.build())
 			.build();
 	}
 
