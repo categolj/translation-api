@@ -5,6 +5,6 @@ import java.util.List;
 import org.jilt.Builder;
 
 @Builder(toBuilder = "from")
-public record FrontMatter(String title, List<Category> categories, List<Tag> tags) {
+public record FrontMatter(String title, String summary, List<Category> categories, List<Tag> tags) {
 
 }
