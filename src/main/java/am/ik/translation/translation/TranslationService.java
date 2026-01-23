@@ -60,9 +60,8 @@ public class TranslationService {
 	public void translateAndSendPullRequest(Long entryId, int issueNumber) {
 		this.sendComment(issueNumber);
 		Entry translated = this.translate(entryId);
-		logger.info("Translated {}", translated.entryId());
 		CreatePullResponse createPullResponse = this.sendPullRequest(translated, issueNumber);
-		logger.info("Sent a pull request: {}", createPullResponse.html_url());
+		logger.info("action=send_pull_request url={}", createPullResponse.html_url());
 	}
 
 	public void sendComment(int issueNumber) {
@@ -85,7 +84,8 @@ public class TranslationService {
 			.uri("%s/entries/{entryId}".formatted(this.entryProps.apiUrl()), entryId)
 			.retrieve()
 			.body(Entry.class));
-		logger.info("Start translation entryId={}, model={}", entryId, chatModel);
+		logger.info("action=start_translation entryId={} model={}", entryId, chatModel);
+		long start = System.currentTimeMillis();
 		String text = this.chatClient.prompt()
 			.system("""
 					You are a skilled Japanese-to-English translator, specializing in technical documentation translation.
@@ -114,6 +114,8 @@ public class TranslationService {
 			.collectList()
 			.map(list -> String.join("", list))
 			.block();
+		long end = System.currentTimeMillis();
+		logger.info("action=finish_translation entryId={} model={} duration={}", entryId, chatModel, end - start);
 		ResponseParser.TitleAndContent titleAndContent = ResponseParser.parseText(Objects.requireNonNull(text));
 		return EntryBuilder.from(entry)
 			.content(
