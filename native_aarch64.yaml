@@ -1,8 +1,8 @@
-image: ghcr.io/categolj/translation-api@sha256:233fdc31cc5767aceb7cf3059203a1e668a7bb47ffae4a8d3cd840a90a9cadad
-git_revision: 4b9e0f3f84043a6b6e46dc1ea0f7f1eb77187d11
+image: ghcr.io/categolj/translation-api@sha256:6d9b098f1dba72c09729b46800e2d0f914149376f93e97ef20c9dfc26550f697
+git_revision: 736dd23cad4dacbc2260236aa36ecc16f09dd19f
 deployment:
   image:
     repository: ghcr.io/categolj/translation-api
-    digest: sha256:233fdc31cc5767aceb7cf3059203a1e668a7bb47ffae4a8d3cd840a90a9cadad
+    digest: sha256:6d9b098f1dba72c09729b46800e2d0f914149376f93e97ef20c9dfc26550f697
   podLabels:
-    github.com/revision: 4b9e0f3f84043a6b6e46dc1ea0f7f1eb77187d11
+    github.com/revision: 736dd23cad4dacbc2260236aa36ecc16f09dd19f
